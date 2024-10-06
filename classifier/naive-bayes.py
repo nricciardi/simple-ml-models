@@ -22,10 +22,10 @@ class NaiveBayesClassifier:
         return self.__classes_likelihood
 
     @property
-    def classes(self) -> np.ndarray[np.int64]:
+    def classes(self) -> np.ndarray[np.float64]:
         return self.__classes
 
-    def fit(self, X: np.ndarray[np.int64], Y: np.ndarray[np.int64]):
+    def fit(self, X: np.ndarray[np.float64], Y: np.ndarray[np.float64]):
         """
         Computes, for each class, a naive likelihood model (self._pixel_probs_given_class),
         and a prior probability (self.class_priors).
@@ -52,7 +52,7 @@ class NaiveBayesClassifier:
 
             self.__classes_likelihood[c] = X_of_c.mean(0)
 
-    def predict(self, input: np.ndarray[np.int64]) -> np.int64:
+    def predict(self, input: np.ndarray[np.float64]) -> np.float64:
 
         classes_probabilities = np.empty(len(self.__classes), dtype=np.float64)
 
@@ -70,11 +70,11 @@ class NaiveBayesClassifier:
 
         return predicted_class
 
-    def predict_set(self, test_set: np.ndarray[np.int64]) -> np.ndarray[np.int64]:
+    def predict_set(self, test_set: np.ndarray[np.float64]) -> np.ndarray[np.float64]:
 
         N = test_set.shape[0]
 
-        predictions = np.empty(N, dtype=np.int64)
+        predictions = np.empty(N, dtype=np.float64)
 
         for i, input in enumerate(test_set[:]):
             predictions[i] = self.predict(input)
