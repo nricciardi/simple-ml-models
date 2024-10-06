@@ -1,10 +1,14 @@
 import numpy as np
+import mnist
+import utils.confusion_matrix
+from utils.constant import EPS
+from utils.confusion_matrix import plot_confusion_matrix
 
 
 class NaiveBayesClassifier:
 
     def __init__(self):
-        self.__classes: np.ndarray[np.int64] = None
+        self.__classes: np.ndarray[np.int8] = None
         self.__classes_priors: np.ndarray[np.float64] = None
         self.__classes_likelihood: np.ndarray[np.float64] = None
 
@@ -17,7 +21,11 @@ class NaiveBayesClassifier:
     def classes_likelihood(self) -> np.ndarray[np.float64]:
         return self.__classes_likelihood
 
-    def fit(self, X: np.ndarray[np.int64], Y: np.ndarray[np.int8]):
+    @property
+    def classes(self) -> np.ndarray[np.int64]:
+        return self.__classes
+
+    def fit(self, X: np.ndarray[np.int64], Y: np.ndarray[np.int64]):
         """
         Computes, for each class, a naive likelihood model (self._pixel_probs_given_class),
         and a prior probability (self.class_priors).
@@ -44,47 +52,32 @@ class NaiveBayesClassifier:
 
             self.__classes_likelihood[c] = X_of_c.mean(0)
 
-    def predict(self, x: np.ndarray[np.int64]) -> np.int8:
+    def predict(self, input: np.ndarray[np.int64]) -> np.int64:
 
-        predictions = np.empty(len(self.__classes), dtype=np.int8)
+        classes_probabilities = np.empty(len(self.__classes), dtype=np.float64)
 
         for i, c in enumerate(self.__classes):
-            prediction = np.log10(self.__classes_priors[c] + EPS) + \
+            class_probability = np.log10(self.__classes_priors[c] + EPS) + \
                          np.sum(np.log10(np.where(
-                             x == 1,
+                             input == 1,
                              self.__classes_likelihood[c] + EPS,
                              1 - self.__classes_likelihood[c]
                          )))
 
-            predictions[i] = prediction
+            classes_probabilities[i] = class_probability
 
-        predicted_class = self.__classes[np.argmax(predictions)]
+        predicted_class = self.__classes[np.argmax(classes_probabilities)]
 
         return predicted_class
 
-    def predict_set(self, X: np.ndarray[np.int64]) -> np.ndarray[np.int8]:
-        """
-        Performs inference on test data.
-        Inference is performed according to the Bayes rule:
-        P = argmax_Y (log(P(X/Y)) + log(P(Y)) - log(P(X)))
+    def predict_set(self, test_set: np.ndarray[np.int64]) -> np.ndarray[np.int64]:
 
-        Parameters
-        ----------
-        X: np.ndarray
-            MNIST test images. Has shape (n_test_samples, h, w).
+        N = test_set.shape[0]
 
-        Returns
-        -------
-        prediction: np.ndarray
-            model predictions over X. Has shape (n_test_samples,)
-        """
+        predictions = np.empty(N, dtype=np.int64)
 
-        N = X.shape[0]
-
-        predictions = np.empty(N, dtype=np.int8)
-
-        for i, x in enumerate(X[:]):
-            predictions[i] = self.predict(x)
+        for i, input in enumerate(test_set[:]):
+            predictions[i] = self.predict(input)
 
         return predictions
 
@@ -92,7 +85,10 @@ class NaiveBayesClassifier:
 
 
 def main():
-    x_train, y_train, x_test, y_test, label_dict = load_mnist(threshold=0.5)
+
+    mnist.DATASET_DIR = "../mnist"
+
+    x_train, y_train, x_test, y_test = mnist.binary_mnist_sets(threshold=0.5)
 
     print(f"Training set -> number of examples: {len(x_train)}")
     print(f"Test set -> number of examples: {len(x_test)}")
@@ -103,7 +99,7 @@ def main():
     print(f"X -> max: {x_train.max()}")
     print(f"X -> values: {np.unique(x_train)}")
     print('-' * 30)
-    print(f"Classes: {(np.unique(y_train))}")
+    print(f"Classes: {np.unique(y_train)}")
 
     nbc = NaiveBayesClassifier()
 
@@ -111,11 +107,13 @@ def main():
     nbc.fit(x_train, y_train)
 
     # test
-    predictions = nbc.predict(x_test)     # x_test.reshape((len(x_test), -1))
+    predictions = nbc.predict_set(x_test)
 
     # evaluate performances
     accuracy = np.sum(np.uint8(predictions == y_test)) / len(y_test)
-    print('Accuracy: {}'.format(accuracy))
+    print(f'Accuracy: {accuracy * 100}%')
+
+    plot_confusion_matrix(y_test, predictions, np.unique(y_train))
 
 if __name__ == '__main__':
     main()
